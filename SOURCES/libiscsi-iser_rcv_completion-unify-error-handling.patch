@@ -1,0 +1,86 @@
+From b8cc526501b02438713e6cf88c709c4a12d11507 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 9 Oct 2018 15:14:14 +0100
+Subject: [PATCH 1/6] iser_rcv_completion: unify error handling
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181009151419.20418-2-pbonzini@redhat.com>
+Patchwork-id: 82505
+O-Subject: [RHEL8 libiscsi PATCH 1/6] iser_rcv_completion: unify error handling
+Bugzilla: 1634541
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Move the iscsi_set_error to iser_post_recv, and avoid leaking the
+input buffer "in".
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 346fb947cb46ee8afcf5b2205e40af4ce8d29a79)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/iser.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/lib/iser.c b/lib/iser.c
+index aa7244c..4b314be 100644
+--- a/lib/iser.c
++++ b/lib/iser.c
+@@ -957,7 +957,7 @@ iser_post_recvm(struct iser_conn *iser_conn, int count)
+ 	iser_conn->post_recv_buf_count += count;
+ 	ret = ibv_post_recv(iser_conn->qp, iser_conn->rx_wr, &rx_wr_failed);
+ 	if (ret) {
+-		iscsi_set_error(iscsi, "ib_post_recv failed ret=%d", ret);
++		iscsi_set_error(iscsi, "posting %d rx bufs, ib_post_recv failed ret=%d", count, ret);
+ 		iser_conn->post_recv_buf_count -= count;
+ 	} else
+ 		iser_conn->rx_desc_head = my_rx_head;
+@@ -1030,12 +1030,13 @@ iser_rcv_completion(struct iser_rx_desc *rx_desc,
+ 		if (iscsi->session_type == ISCSI_SESSION_NORMAL) {
+ 			if(iser_alloc_rx_descriptors(iser_conn,255)) {
+ 				iscsi_set_error(iscsi, "iser_alloc_rx_descriptors Failed\n");
+-				return -1;
++				err = -1;
++				goto error;
+ 			}
+ 			err = iser_post_recvm(iser_conn, ISER_MIN_POSTED_RX);
+ 			if (err) {
+-				iscsi_set_error(iscsi, "posting %d rx bufs err %d", count, err);
+-				return -1;
++				err = -1;
++				goto error;
+ 			}
+ 		}
+ 	in->hdr = (unsigned char*)rx_desc->iscsi_header;
+@@ -1082,7 +1083,6 @@ iser_rcv_completion(struct iser_rx_desc *rx_desc,
+ 	ISCSI_LIST_ADD_END(&iser_conn->tx_desc, iser_pdu->desc);
+ 
+ nop_target:
+-
+ 	/* decrementing conn->post_recv_buf_count only --after-- freeing the   *
+ 	 * task eliminates the need to worry on tasks which are completed in   *
+ 	 * parallel to the execution of iser_conn_term. So the code that waits *
+@@ -1100,16 +1100,16 @@ nop_target:
+ 			count = iser_conn->qp_max_recv_dtos - outstanding;
+ 		err = iser_post_recvm(iser_conn, count);
+ 		if (err) {
+-			iscsi_set_error(iscsi, "posting %d rx bufs err %d", count, err);
+-			return -1;
++			err = -1;
++			goto error;
+ 		}
+ 	}
+ 
+ receive:
+-
+ 	err = iscsi_process_pdu(iscsi, in);
+-	iscsi_free(iscsi, in);
+ 
++error:
++	iscsi_free(iscsi, in);
+ 	return err;
+ }
+ 
+-- 
+1.8.3.1
+

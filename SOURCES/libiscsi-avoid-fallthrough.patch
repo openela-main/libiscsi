@@ -1,0 +1,38 @@
+From aa9406371751329a23fed8b8799046369c3e1686 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 9 Oct 2018 15:14:18 +0100
+Subject: [PATCH 5/6] avoid fallthrough
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181009151419.20418-6-pbonzini@redhat.com>
+Patchwork-id: 82502
+O-Subject: [RHEL8 libiscsi PATCH 5/6] avoid fallthrough
+Bugzilla: 1634541
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Avoid the new warning in GCC 8.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 679d0abe7c142df178a907397551c4d9695cc667)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/scsi-lowlevel.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/scsi-lowlevel.c b/lib/scsi-lowlevel.c
+index 9c98c62..83cff18 100644
+--- a/lib/scsi-lowlevel.c
++++ b/lib/scsi-lowlevel.c
+@@ -1058,6 +1058,7 @@ scsi_maintenancein_datain_getfullsize(struct scsi_task *task)
+ 				(task_get_uint8(task, 1) & 0x80) ? 12 : 0 +
+ 				task_get_uint16(task, 2);
+ 		}
++		return -1;
+ 	default:
+ 		return -1;
+ 	}
+-- 
+1.8.3.1
+

@@ -1,0 +1,39 @@
+From 2d293bde99f4214d8adb1932579bfbb6e59cf0a5 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 9 Oct 2018 15:14:17 +0100
+Subject: [PATCH 4/6] do not warn for strncpy
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181009151419.20418-5-pbonzini@redhat.com>
+Patchwork-id: 82504
+O-Subject: [RHEL8 libiscsi PATCH 4/6] do not warn for strncpy
+Bugzilla: 1634541
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+strncpy use in iscsi_reconnect is just fine.  Do not warn for it, and
+also do not warn if clang does not recognize the flag.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 4728d4eaa605a02cfc767dd40e5436c670e88b0f)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ configure.ac | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configure.ac b/configure.ac
+index f0bbc00..1ccfc59 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -29,6 +29,7 @@ AC_ARG_ENABLE([werror], [AS_HELP_STRING([--disable-werror],
+ 
+ if test "$ac_cv_prog_gcc" = yes; then
+    WARN_CFLAGS="-Wall -W -Wshadow -Wstrict-prototypes -Wpointer-arith -Wcast-align -Wno-strict-aliasing"
++   WARN_CFLAGS="$WARN_CFLAGS -Wno-unknown-warning-option -Wno-stringop-truncation"
+    if test "x$enable_werror" != "xno"; then
+        WARN_CFLAGS="$WARN_CFLAGS -Werror"
+    fi
+-- 
+1.8.3.1
+

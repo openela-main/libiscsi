@@ -1,0 +1,43 @@
+From 871a0636a3f624d504e284da2336c75dd635d587 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 9 Oct 2018 15:14:19 +0100
+Subject: [PATCH 6/6] avoid truncation when logging message that includes
+ target name
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181009151419.20418-7-pbonzini@redhat.com>
+Patchwork-id: 82507
+O-Subject: [RHEL8 libiscsi PATCH 6/6] avoid truncation when logging message that includes target name
+Bugzilla: 1634541
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Avoid truncation warning from GCC 8.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit bffafc1c3003c2ee05d28eaa345e5854bc36014d)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/logging.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/logging.c b/lib/logging.c
+index bc31f24..727860b 100644
+--- a/lib/logging.c
++++ b/lib/logging.c
+@@ -73,9 +73,9 @@ iscsi_log_message(struct iscsi_context *iscsi, int level, const char *format, ..
+ 	}
+ 
+ 	if (iscsi->target_name[0]) {
+-		static char message2[1024];
++		static char message2[1282];
+ 
+-		snprintf(message2, 1024, "%s [%s]", message, iscsi->target_name);
++		snprintf(message2, 1282, "%s [%s]", message, iscsi->target_name);
+ 		iscsi->log_fn(level, message2);
+ 	}
+ 	else
+-- 
+1.8.3.1
+
