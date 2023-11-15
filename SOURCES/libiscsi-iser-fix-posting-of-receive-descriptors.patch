@@ -1,0 +1,91 @@
+From 4c41675adc85891f6605bc94aaa1baf7f7dd67e7 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 10 Oct 2018 13:27:49 +0100
+Subject: [PATCH 2/6] iser: fix posting of receive descriptors
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181010132749.7381-1-pbonzini@redhat.com>
+Patchwork-id: 82566
+O-Subject: [RHEL8 libiscsi PATCH 2/6] iser: fix posting of receive descriptors
+Bugzilla: 1634541
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The old code is effectively always posting iser_conn->min_posted_rx
+descriptors, since it is
+
+   if (outstanding + iser_conn->min_posted_rx <= iser_conn->qp_max_recv_dtos) {
+       if(iser_conn->qp_max_recv_dtos - outstanding > iser_conn->min_posted_rx)
+           count = iser_conn->min_posted_rx;
+       else
+           count = iser_conn->qp_max_recv_dtos - outstanding;
+
+which is equivalent to
+
+    if(iser_conn->qp_max_recv_dtos - outstanding >= iser_conn->min_posted_rx)
+        if(iser_conn->qp_max_recv_dtos - outstanding > iser_conn->min_posted_rx)
+            count = iser_conn->min_posted_rx;
+        else
+            count = iser_conn->min_posted_rx;
+
+So the "if" is redundant and the "min_posted_rx" is actually behaving more
+like a _maximum_ number of posted descriptors in one iser_post_recvm.
+Fix it with the (presumably) intended logic and remove a goto along
+the way.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit f0fcee72c477dea57f0a50887b7368ba6d4ec33b)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/iser.c | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/lib/iser.c b/lib/iser.c
+index 4b314be..e5c8435 100644
+--- a/lib/iser.c
++++ b/lib/iser.c
+@@ -1021,7 +1021,7 @@ iser_rcv_completion(struct iser_rx_desc *rx_desc,
+ 		    struct iser_conn *iser_conn)
+ {
+ 	struct iscsi_in_pdu *in = NULL;
+-	int outstanding, count = 0, err;
++	int empty, err;
+ 	struct iscsi_context *iscsi = iser_conn->cma_id->context;
+ 
+ 	in = iscsi_malloc(iscsi, sizeof(*in));
+@@ -1089,23 +1089,17 @@ nop_target:
+ 	 * for the posted rx bufs refcount to become zero handles everything   */
+ 	iser_conn->post_recv_buf_count--;
+ 
+-	if ((unsigned char *)rx_desc == iser_conn->login_resp_buf)
+-		goto receive;
+-
+-	outstanding = iser_conn->post_recv_buf_count;
+-	if (outstanding + iser_conn->min_posted_rx <= iser_conn->qp_max_recv_dtos) {
+-		if(iser_conn->qp_max_recv_dtos - outstanding > iser_conn->min_posted_rx)
+-			count = iser_conn->min_posted_rx;
+-		else
+-			count = iser_conn->qp_max_recv_dtos - outstanding;
+-		err = iser_post_recvm(iser_conn, count);
+-		if (err) {
+-			err = -1;
+-			goto error;
++	if ((unsigned char *)rx_desc != iser_conn->login_resp_buf) {
++		empty = iser_conn->qp_max_recv_dtos - iser_conn->post_recv_buf_count;
++		if (empty >= iser_conn->min_posted_rx) {
++			err = iser_post_recvm(iser_conn, empty);
++			if (err) {
++				err = -1;
++				goto error;
++			}
+ 		}
+ 	}
+ 
+-receive:
+ 	err = iscsi_process_pdu(iscsi, in);
+ 
+ error:
+-- 
+1.8.3.1
+

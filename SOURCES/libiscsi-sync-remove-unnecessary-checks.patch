@@ -1,0 +1,58 @@
+From cc34aab2a455546431da8e8abb0d854a70c71962 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 9 Oct 2018 15:14:16 +0100
+Subject: [PATCH 3/6] sync: remove unnecessary checks
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181009151419.20418-4-pbonzini@redhat.com>
+Patchwork-id: 82506
+O-Subject: [RHEL8 libiscsi PATCH 3/6] sync: remove unnecessary checks
+Bugzilla: 1634541
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Laszlo Ersek <lersek@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+state is always non-NULL in iscsi_sync_cb and iscsi_discovery_cb.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit f507c94774bff0c851880813d95f5d0a8fbdace8)
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/sync.c | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/lib/sync.c b/lib/sync.c
+index 9fb78e7..34ed64e 100644
+--- a/lib/sync.c
++++ b/lib/sync.c
+@@ -85,10 +85,8 @@ iscsi_sync_cb(struct iscsi_context *iscsi _U_, int status,
+ {
+ 	struct iscsi_sync_state *state = private_data;
+ 
+-	if (state != NULL) {
+-		state->status    = status;
+-		state->finished = 1;
+-	}
++	state->status    = status;
++	state->finished = 1;
+ }
+ 
+ int
+@@ -1818,11 +1816,9 @@ iscsi_discovery_cb(struct iscsi_context *iscsi _U_, int status,
+                 }
+         }
+ 
+-	if (state != NULL) {
+-		state->status    = status;
+-		state->finished = 1;
+-                state->ptr = dahead;
+-	}
++	state->status    = status;
++	state->finished = 1;
++	state->ptr = dahead;
+ }
+ 
+ struct iscsi_discovery_address *
+-- 
+1.8.3.1
+
