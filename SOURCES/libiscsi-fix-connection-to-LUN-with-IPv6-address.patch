@@ -1,0 +1,86 @@
+From 68f9e40e4daf0a758132c520ab81fe12c13f40a7 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 4 Dec 2018 17:38:39 +0000
+Subject: [PATCH] fix connection to LUN with IPv6 address
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+RH-Author: Paolo Bonzini <pbonzini@redhat.com>
+Message-id: <20181204173839.18385-1-pbonzini@redhat.com>
+Patchwork-id: 83252
+O-Subject: [RHEL-8.0 libiscsi PATCH] fix connection to LUN with IPv6 address
+Bugzilla: 1597942
+RH-Acked-by: Stefan Hajnoczi <stefanha@redhat.com>
+RH-Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+RH-Acked-by: Daniel P. Berrange <berrange@redhat.com>
+
+From: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+
+Bugzilla: 1597942
+
+Brew build: 19370266
+
+Signed-off-by: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+(cherry picked from commit 179f6b33d43f26cbca133ff03fa1bacc7e8a6120)
+
+The patch has no commit message upstream, but it is pretty simple.
+
+Signed-off-by: Danilo C. L. de Paula <ddepaula@redhat.com>
+---
+ lib/socket.c | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/lib/socket.c b/lib/socket.c
+index 036b4f4..a335f33 100644
+--- a/lib/socket.c
++++ b/lib/socket.c
+@@ -188,6 +188,20 @@ static int iscsi_tcp_connect(struct iscsi_context *iscsi, union socket_address *
+ 
+ 	int socksize;
+ 
++	switch (ai_family) {
++	case AF_INET:
++                socksize = sizeof(struct sockaddr_in);
++                break;
++	case AF_INET6:
++                socksize = sizeof(struct sockaddr_in6);
++                break;
++        default:
++		iscsi_set_error(iscsi, "Unknown address family :%d. "
++				"Only IPv4/IPv6 supported so far.",
++				ai_family);
++                return -1;
++        }
++
+ 	iscsi->fd = socket(ai_family, SOCK_STREAM, 0);
+ 	if (iscsi->fd == -1) {
+ 		iscsi_set_error(iscsi, "Failed to open iscsi socket. "
+@@ -246,8 +260,6 @@ static int iscsi_tcp_connect(struct iscsi_context *iscsi, union socket_address *
+ 		ISCSI_LOG(iscsi,3,"TCP_NODELAY set to 1");
+ 	}
+ 
+-	socksize = sizeof(struct sockaddr_in);  // Work-around for now, need to fix it
+-
+ 	if (connect(iscsi->fd, &sa->sa, socksize) != 0
+ 		&& errno != EINPROGRESS) {
+ 		iscsi_set_error(iscsi, "Connect failed with errno : "
+@@ -332,6 +344,7 @@ iscsi_connect_async(struct iscsi_context *iscsi, const char *portal,
+ 	case AF_INET:
+ 		socksize = sizeof(struct sockaddr_in);
+ 		memcpy(&sa.sin, ai->ai_addr, socksize);
++                sa.sin.sin_family = AF_INET;
+ 		sa.sin.sin_port = htons(port);
+ #ifdef HAVE_SOCK_SIN_LEN
+ 		sa.sin.sin_len = socksize;
+@@ -341,6 +354,7 @@ iscsi_connect_async(struct iscsi_context *iscsi, const char *portal,
+ 	case AF_INET6:
+ 		socksize = sizeof(struct sockaddr_in6);
+ 		memcpy(&sa.sin6, ai->ai_addr, socksize);
++                sa.sin6.sin6_family = AF_INET6;
+ 		sa.sin6.sin6_port = htons(port);
+ #ifdef HAVE_SOCK_SIN_LEN
+ 		sa.sin6.sin6_len = socksize;
+-- 
+1.8.3.1
+
